@@ -1,0 +1,184 @@
+public class HUD{
+  Player player;
+  int wave;
+  float x;
+  float y;
+  float dx = 0;
+  float dy = 0;
+  float hpPercent;
+  
+  void update(float healthPercent){
+    hpPercent = max(healthPercent,0);
+  }
+  
+  void Draw(){
+    drawHealthBar(hpPercent);
+    drawDodgeBar();
+    drawAmmoCounter();
+    drawCoord();
+    drawTimer();
+    drawGrenadeSkill(player);
+  }
+  
+  void drawGrenadeSkill(Player player) {
+
+    float cx = 1000;
+    float cy = height - 60;
+    float r = 28;
+
+    fill(255, 180, 127);
+    stroke(0);
+    strokeWeight(2);
+    ellipse(cx, cy, r*2, r*2);
+
+    float cdNorm = 1.0 - constrain(player.grenadeCooldown, 0, 1);
+
+    noStroke();
+    fill(255, 122, 28);
+  
+    arc(
+      cx, cy,
+      r*2, r*2,
+      -HALF_PI,
+      -HALF_PI + TWO_PI * cdNorm,
+      PIE
+    );
+  
+    noFill();
+    stroke(255);
+    strokeWeight(2);
+    ellipse(cx, cy, r*2, r*2);
+
+    fill(255);
+    textAlign(CENTER, CENTER);
+    textSize(14);
+    text(player.grenadeCount, cx, cy);
+  }
+  
+  void drawTimer() {
+
+    int t = max(0, (int)timer);
+  
+    int minutes = t / 60;
+    int seconds = t % 60;
+  
+    String secStr = (seconds < 10) ? "0" + seconds : "" + seconds;
+  
+    fill(0);
+    textAlign(LEFT, CENTER);
+    textSize(30);
+  
+    text(minutes + ":" + secStr, 650, 50);
+  }
+  
+  void drawCoord() {
+    fill(0);
+    textAlign(LEFT, CENTER);
+    textSize(14);
+    text(round(player.x) + ", " + round(player.y), 30, 230);
+  }
+  
+  void drawHealthBar(float healthPercent){
+    strokeWeight(0);
+    fill(150);
+    rect(1060, height - 35, 200, 15);
+ 
+    strokeWeight(0);
+    fill(200, 0, 0);
+    rect(1060, height - 35, 200 * healthPercent, 15);
+  }
+  
+  void drawAmmoCounter(){
+  
+    if (player == null) return;
+    if (player.activeWeapon == null) return;
+    float barX = 1060;
+    float barY = height - 80;
+    float barW = 200;
+    float barH = 30;
+  
+    // weapon name
+    fill(0);
+    textAlign(LEFT, CENTER);
+    textSize(14);
+    text(player.activeWeapon.name, barX, barY - 15);
+    if (player.activeWeapon.fireModes[player.activeWeapon.fireModeIndex]){
+      text("[AUTO]", barX + 150, barY - 15);
+    } else {
+      text("[SEMI]", barX + 150, barY - 15);
+    }
+    
+  
+    // bar background
+    fill(150);
+    strokeWeight(0);
+    rect(barX, barY, barW, barH);
+  
+    // bar fill scaled to ammo
+    int magSize = player.activeWeapon.getStatBlock().magSize;
+    float fillW;
+    if (player.reloading){
+      fillW = (player.reloadTimer / player.reloadDuration) * barW;
+    } else {
+      fillW = (float)player.currentAmmo / magSize * barW;
+    }
+    
+    fill(220, 200, 100);
+    rect(barX, barY, fillW, barH);
+  
+    // center text
+    fill(0);
+    textAlign(CENTER, CENTER);
+    textSize(13);
+    if (player.reloading){
+      text("RELOADING", barX + barW / 2, barY + barH / 2);
+    } else {
+      text(player.currentAmmo + " / " + magSize, barX + barW / 2, barY + barH / 2);
+    }
+    //println("activeWeapon: " + player.activeWeapon.name + " ammo: " + player.currentAmmo);
+
+  }
+  
+  void drawDodgeBar(){
+    if (player == null){
+      return;
+    }
+ 
+    float barX = 1060;
+    float barY = height - 43;
+    float barW = 200;
+    float barH = 8;
+ 
+    //background
+    fill(150);
+    strokeWeight(0);
+    rect(barX, barY, barW, barH);
+ 
+    float fullDodges   = player.dodgesLeft;
+    float partialDodge;
+    if (player.dodgesLeft < player.maxDodges){
+      partialDodge = player.dodgeRechargeTimer / player.dodgeRechargeDuration;
+    } else {
+      partialDodge = 0;
+    }
+ 
+    float fillW = ((fullDodges + partialDodge) / player.maxDodges) * barW;
+    fill(100, 150, 255);
+    rect(barX, barY, fillW, barH);
+ 
+    //quarter dividers
+    stroke(0);
+    strokeWeight(1);
+    for (int i = 1; i < player.maxDodges; i++){
+      float lineX = barX + (barW / player.maxDodges) * i;
+      line(lineX, barY, lineX, barY + barH);
+    }
+  }
+  
+  
+  void drawWaveCounter(){}
+  
+  void drawWeaponSlots(){}
+  
+  void drawBossBar(int health, int maxHealth){}
+}

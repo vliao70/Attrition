@@ -1,0 +1,457 @@
+public class Player{
+  float x;
+  float y;
+  PVector dirMovement;
+  float speed;
+  float currHealth;
+  float maxHealth;
+  Weapon weapon1;
+  Weapon weapon2;
+  Weapon activeWeapon;
+  boolean[] keys[];
+  ArrayList<Bullet> bullets = new ArrayList<Bullet>();
+  PImage sprite;
+  Animation head;
+  float playerWidth;
+  float playerHeight;
+  
+  float dodgeDuration;
+  boolean shouldDodge;
+  float dodgeAmt = 10;
+  int maxDodges = 4;
+  int dodgesLeft = 4;
+  float dodgeRechargeTimer = 0;
+  float dodgeRechargeDuration;
+  
+  float hurtDur;
+  boolean justTookDmg;
+  float hurtSlowAmt;
+  
+  int currentAmmo;
+  int savedAmmo1;
+  int savedAmmo2;
+  boolean reloading;
+  float reloadTimer;
+  float reloadDuration;
+  boolean fullAuto;
+  float fireRate;
+  float fireCooldown;
+  
+  float timeSinceLastShot;
+  float firstShotAccuracyWindow;
+  
+  int grenadeCount;
+  float grenadeCooldown;
+  
+  PlayerLoadout loadout;
+  
+  float reticleX;
+  float reticleY;
+  float reticleReturnSpeed;
+  float reticleMaxOffset;
+  float reticleVX = 0;
+  float reticleVY = 0;
+  float springStiffness;
+  float springDamping;
+  
+  float recoilBuildup = 0;
+  float maxRecoilBuildup = 3.0;
+  int tileFormX;
+  int tileFormY;
+  
+  float healTimer = 0;
+  
+  PImage rageImg = loadImage("bocchirage.jpg");
+  boolean raged = false;
+  float rageImgCd = 2;
+
+  boolean activatingAnchor = false;
+  float anchorActivateTimer = 0;
+  float anchorActivateDuration = 3.0;
+  float gameTimer = 120;
+  float maxTimer = 120;
+  boolean gameOver = false;
+  boolean gameWon = false;
+  int anchorsActivated = 0;
+  int totalAnchors = 5;
+  
+  void setUp() {
+    x = 150;
+    y = 150;
+    speed = 100;
+    dirMovement = new PVector(0, 0);
+    sprite = loadImage("filllerCharImg.png");
+    head = new Animation("bocchi/boccieehe", 15);
+    playerWidth = 50;
+    playerHeight = 50;
+    dodgeDuration = 0.4;
+    shouldDodge = false;
+    currHealth = 100;
+    maxHealth = 100;
+    hurtDur = 0.5;
+    justTookDmg = false;
+    hurtSlowAmt = 1;
+    weapon1 = loadout.weapon1;
+    weapon2 = loadout.weapon2;
+    activeWeapon = weapon1;
+    currentAmmo = activeWeapon.getStatBlock().magSize;
+    reloading = false;
+    reloadTimer = 0;
+    reloadDuration = 2.0;
+    timeSinceLastShot = 67;
+    firstShotAccuracyWindow = 1.5;
+    
+    savedAmmo1  = weapon1.getStatBlock().magSize;
+    savedAmmo2  = weapon2.getStatBlock().magSize;
+    currentAmmo = savedAmmo1;
+    
+    fullAuto = true;
+    fireRate = activeWeapon.getStatBlock().fireRate;
+    
+    grenadeCount = 10;
+    grenadeCooldown = 1;
+    
+    refreshFireMode();
+    applyStatModifiers();
+    
+    reticleX = x;
+    reticleY = y;
+    reticleVX = 0;
+    reticleVY = 0;
+
+    gameTimer = 120;
+    gameOver  = false;
+    gameWon   = false;
+    anchorsActivated = 0;
+  }
+  
+  Player(PlayerLoadout loadout) {
+    this.loadout = loadout;
+  }
+  
+  void update(float dt) {
+    dirMovement.set(0, 0);
+
+    if (wPressed) dirMovement.y -= 1;
+    if (sPressed) dirMovement.y += 1;
+    if (aPressed) dirMovement.x -= 1;
+    if (dPressed) dirMovement.x += 1;
+
+    if (dirMovement.mag() > 0) {
+      dirMovement.normalize();
+    }
+    
+    for (CollisionObject ocbj : gameWorld.colObjs) {
+      ocbj.Update(dt);
+    }
+
+    x += dirMovement.x * speed * dt;
+    y += dirMovement.y * speed * dt;
+    
+    for (Bullet b : bullets) {
+      if (!b.isExpired()) {
+        b.update(dt);
+      } else if (b.isAoe && b.explodeDur >= 0) {
+        b.update(dt);
+      }
+    }
+    
+    if (dodgesLeft < maxDodges) {
+      dodgeRechargeTimer += dt;
+      if (dodgeRechargeTimer >= dodgeRechargeDuration) {
+        dodgesLeft++;
+        dodgeRechargeTimer = 0;
+      }
+    }
+
+    if (spacePressed && dodgesLeft > 0 && !shouldDodge) {
+      shouldDodge = true;
+      dodgesLeft--;
+      dodgeRechargeTimer = 0;
+    }
+    
+    if (shouldDodge) {
+      dodgeDuration -= dt;
+      if (dodgeDuration > 0) {
+        x += dirMovement.x * dodgeAmt;
+        y += dirMovement.y * dodgeAmt;
+      } else {
+        shouldDodge = false;
+        dodgeDuration = map(activeWeapon.getStatBlock().weight, 0, 100, 0.25, 0.05);
+      }
+    }
+    
+    if (justTookDmg) {
+      hurtDur -= dt;
+      if (hurtDur >= 0) {
+        x -= dirMovement.x * hurtSlowAmt;
+        y -= dirMovement.y * hurtSlowAmt;
+      } else {
+        hurtDur = 0.5;
+        justTookDmg = false;
+      }
+    }
+    
+    if (reloading) {
+      reloadTimer += dt;
+      if (reloadTimer >= reloadDuration) {
+        currentAmmo = activeWeapon.getStatBlock().magSize;
+        reloading   = false;
+        reloadTimer  = 0;
+      }
+    }
+    
+    timeSinceLastShot += dt;
+    
+    if (fireCooldown > 0) {
+      fireCooldown -= dt;
+    }
+    
+    if (fullAuto && mouseHeld && fireCooldown <= 0 && mouseButton == LEFT) {
+      shoot(reticleX, reticleY);
+      fireCooldown = 1.0 / fireRate;
+    }
+    
+    grenadeCooldown -= dt;
+    
+    float worldMouseX = mouseX + x - width/2;
+    float worldMouseY = mouseY + y - height/2;
+    
+    float forceX = (worldMouseX - reticleX) * springStiffness;
+    float forceY = (worldMouseY - reticleY) * springStiffness;
+    
+    reticleVX = (reticleVX + forceX * dt) * (1.0 - springDamping * dt);
+    reticleVY = (reticleVY + forceY * dt) * (1.0 - springDamping * dt);
+    
+    reticleX += reticleVX * dt;
+    reticleY += reticleVY * dt;
+    
+    if (timeSinceLastShot > 0.1) {
+      recoilBuildup = max(recoilBuildup - dt * 1.0, 0);
+    }
+    
+    takeDamage();
+    
+    tileFormX = (int)(x / gameWorld.map.tileSize);
+    tileFormY = (int)(y / gameWorld.map.tileSize);
+
+    // ─── anchor interaction ───────────────────────────────
+    if (gameWorld.map.tileFormGrid[tileFormY][tileFormX] == gameWorld.map.ANCHOR) {
+      showAnchorTooltip = true;
+      if (zPressed) {
+        activatingAnchor    = true;
+        anchorActivateTimer += dt;
+        if (anchorActivateTimer >= anchorActivateDuration) {
+          gameTimer = min(gameTimer + 20, maxTimer);
+          anchorsActivated++;
+          gameWorld.map.grid[tileFormY][tileFormX] = gameWorld.map.SPACE;
+          gameWorld.map.tileFormGrid[tileFormY][tileFormX] = gameWorld.map.SPACE;
+          gameWorld.map.deactivatedAnchors.add(new int[]{tileFormY, tileFormX, (int)(gameWorld.map.anchorRechargeDuration * 1000)});
+        
+          anchorActivateTimer = 0;
+          activatingAnchor    = false;
+          if (anchorsActivated >= totalAnchors) {
+            gameWon = true;
+          }
+        }
+      } else {
+        activatingAnchor    = false;
+        anchorActivateTimer = 0;
+      }
+    } else {
+      showAnchorTooltip   = false;
+      activatingAnchor    = false;
+      anchorActivateTimer = 0;
+    }
+
+    // ─── game timer countdown ─────────────────────────────
+    if (!gameOver && !gameWon) {
+      gameTimer -= dt;
+      if (gameTimer <= 0) {
+        gameTimer = 0;
+        gameOver  = true;
+      }
+    }
+
+    if (qPressed && !raged) {
+      rage();
+      raged = true;
+    }
+    if (raged) {
+      rageImgCd -= dt;
+    }
+  }
+  
+  void handleKey(char key) {
+    if (key == '1') {
+      if (activeWeapon != weapon1) switchWeapon();
+    }
+    if (key == '2') {
+      if (activeWeapon != weapon2) switchWeapon();
+    }
+    if (key == 'r') reload();
+    if (key == 'v') {
+      activeWeapon.cycleFireMode();
+      refreshFireMode();
+    }
+  }
+  
+  void switchWeapon() {
+    reloading   = false;
+    reloadTimer = 0;
+    if (activeWeapon == weapon1) {
+      savedAmmo1   = currentAmmo;
+      activeWeapon = weapon2;
+      currentAmmo  = savedAmmo2;
+    } else {
+      savedAmmo2   = currentAmmo;
+      activeWeapon = weapon1;
+      currentAmmo  = savedAmmo1;
+    }
+    refreshFireMode();
+    applyStatModifiers();
+  }
+  
+  void Draw() {
+    if (qPressed && rageImgCd >= 0) {
+      image(rageImg, x - 400, y - 400);
+    } else {
+      head.display(x - playerWidth/2, y - playerHeight/2, playerWidth, playerHeight);
+    }
+    for (Bullet b : bullets) {
+      if (!b.isExpired()) b.Draw();
+    }
+  }
+  
+  void handleClick(int mx, int my) {
+    if (mouseButton == LEFT)  shoot(reticleX, reticleY);
+    if (mouseButton == RIGHT) throwGrenade(reticleX, reticleY);
+  }
+  
+  void throwGrenade(float targetX, float targetY) {
+    if (grenadeCount <= 0)    return;
+    if (grenadeCooldown > 0)  return;
+    grenadeCount--;
+    grenadeCooldown = 1;
+    PVector dirG = new PVector(targetX - x, targetY - y).normalize();
+    dirG.y -= 0.7;
+    bullets.add(new Bullet(dirG, x, y, 100, 300, 1, true, 100, true));
+  }
+  
+  void shoot(float targetX, float targetY) {
+    if (activeWeapon == null) return;
+    if (reloading)            return;
+    if (currentAmmo <= 0)     { reload(); return; }
+    if (fireCooldown > 0)     return;
+
+    currentAmmo--;
+    fireCooldown = 1.0 / fireRate;
+    StatBlock stats = activeWeapon.getStatBlock();
+    float accuracyScale = 1.0 - min(timeSinceLastShot / firstShotAccuracyWindow, 1.0);
+    StatBlock modifiedStats = new StatBlock(
+      stats.weight, stats.ergonomics, stats.recoil,
+      stats.magSize, stats.bulletVelocity, stats.damage,
+      stats.deviation * accuracyScale,
+      stats.armorPen, stats.bulletLifetime, stats.fireRate, stats.fullAuto, stats.reticleReturnSpeed
+    );
+    timeSinceLastShot = 0;
+    PVector dir = PVector.sub(new PVector(targetX, targetY), new PVector(x, y)).normalize();
+    bullets.add(new Bullet(dir, x, y, modifiedStats));
+    recoilBuildup = min(recoilBuildup + 0.1, maxRecoilBuildup);
+    float kick = stats.recoil * recoilBuildup * 5;
+    reticleVX += random(-kick, kick);
+    reticleVY += random(-kick, kick);
+  }
+  
+  void reload() {
+    if (reloading) return;
+    if (currentAmmo == activeWeapon.getStatBlock().magSize) return;
+    reloading   = true;
+    reloadTimer = 0;
+  }
+  
+  void takeDamage() {
+    for (Enemy e : gameWorld.enemies) {
+      for (Bullet b : e.bullets) {
+        if (b.x >= -playerWidth/2+x && b.x <= playerWidth/2+x &&
+            b.y >= -playerHeight/2+y && b.y <= playerHeight/2+y) {
+          if (!b.isExpired()) {
+            currHealth -= b.damage;
+            b.age = b.lifetime + 1;
+            justTookDmg = true;
+          }
+        }
+      }
+    }
+  }
+  
+  void refreshWeapons() {
+    weapon1 = loadout.weapon1;
+    weapon2 = loadout.weapon2;
+    activeWeapon = weapon1;
+  }
+  
+  void refreshFireMode() {
+    StatBlock stats = activeWeapon.getStatBlock();
+    fullAuto = stats.fullAuto;
+    fireRate = stats.fireRate;
+    applyStatModifiers();
+  }
+  
+  void applyStatModifiers() {
+    StatBlock active = activeWeapon.getStatBlock();
+    Weapon otherWeapon;
+    if (activeWeapon == weapon1) {
+      otherWeapon = weapon2;
+    } else {
+      otherWeapon = weapon1;
+    }
+    StatBlock other = otherWeapon.getStatBlock();
+    float blendedWeight = active.weight * 0.75 + other.weight * 0.25;
+    speed = map(blendedWeight, 0, 100, 400, 0);
+    dodgeDuration = map(blendedWeight, 0, 100, 0.25, 0.05);
+    dodgeRechargeDuration   = map(active.weight, 0, 100, 0, 5);
+    reloadDuration          = map(active.ergonomics, 0, 100, 4, 1);
+    firstShotAccuracyWindow = map(active.ergonomics, 0, 100, 1.5, 0.5);
+    reticleReturnSpeed = active.reticleReturnSpeed;
+    springStiffness    = active.reticleReturnSpeed * 25;
+    springDamping      = active.reticleReturnSpeed * 2.5;
+  }
+  
+  void drawReticle() {
+    StatBlock stats = activeWeapon.getStatBlock();
+    float screenX = reticleX - x + width/2;
+    float screenY = reticleY - y + height/2;
+    float d = dist(reticleX, reticleY, x, y);
+    float spreadRadius = max(stats.deviation * (d / 100.0), 8);
+    noFill();
+    stroke(0);
+    strokeWeight(1);
+    ellipse(screenX, screenY, spreadRadius * 2, spreadRadius * 2);
+    fill(0);
+    noStroke();
+    ellipse(screenX, screenY, 4, 4);
+  }
+  
+  boolean isDead() {
+    return currHealth <= 0;
+  }
+  
+  void displayWeapon(PImage weap) {
+    float worldMouseX = mouseX + x - width/2;
+    float worldMouseY = mouseY + y - height/2;
+    PVector dir = PVector.sub(new PVector(worldMouseX, worldMouseY), new PVector(x, y)).normalize();
+    float angle = atan2(dir.y, dir.x);
+    pushMatrix();
+    translate(x + playerWidth/2, y + playerHeight/2);
+    rotate(angle);
+    imageMode(CENTER);
+    image(weap, 0, 0);
+    popMatrix();
+  }
+  
+  void rage() {
+    currHealth = maxHealth;
+    grenadeCount += 5;
+  }
+}

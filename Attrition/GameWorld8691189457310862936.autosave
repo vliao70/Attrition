@@ -1,0 +1,38 @@
+public class GameWorld{
+  ArrayList<Enemy> enemies;
+  ArrayList<Bullet> bullets;
+  ArrayList<Anchor> anchors;
+  TileMap map;
+  WaveManager waveManager;
+  float timer;
+  int waveNumber;
+  float cameraX;
+  float cameraY;
+  
+  void setUp() {
+    
+    player.setUp();
+  }
+  
+  void update(float dt){
+    player.update(dt);
+  }
+  
+  void Draw(){
+    player.Draw();
+  }
+  
+  void handleClick(int x, int y){}
+  
+  void handleKey(char key){}
+  
+  void updateCamera(){}
+  
+  void checkBulletCollisions(){}
+  
+  void drawHUD(){}
+  
+  boolean isOnScreen(int x, int y, int width, int height){
+    return true;
+  }
+}

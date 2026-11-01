@@ -1,0 +1,282 @@
+public class HUD {
+  Player player;
+  int wave;
+  float x;
+  float y;
+  float dx = 0;
+  float dy = 0;
+  float hpPercent;
+  float timer = 120;
+  float maxTimer = 120;
+
+  void update(float healthPercent, float timer) {
+    hpPercent  = max(healthPercent, 0);
+    this.timer = timer;
+  }
+
+  void Draw() {
+    drawHealthBar(hpPercent);
+    drawDodgeBar();
+    drawAmmoCounter();
+    drawCoord();
+    drawTimer();
+    drawGrenadeSkill(player);
+    drawAnchorTt();
+    drawWorkshopTt();
+    drawHealTt();
+    drawGuidesTt();
+    drawGuides();
+  }
+
+  void drawGuides() {
+    if (gPressed) {
+      stroke(0);
+      strokeWeight(2);
+      fill(255);
+
+      rect(20, 245, 260, 400);
+
+      fill(0);
+      textAlign(LEFT, CENTER);
+      textSize(20);
+      text("- WASD for movement.", 25, 260);
+      text("- SPACE for dodge.", 25, 290);
+      text("- LEFT CLICK to attack.", 25, 320);
+      text("- RIGHT CLICK to \n throw grenade.", 25, 360);
+      text("- 1, 2 to switch weapon.", 25, 400);
+      text("- Q to rage: gain 5\n grenades and restore\n full hp (1 use).", 25, 460);
+      text("- R to reload.", 25, 520);
+      text("- Kill all waves of \n enemies within the \n time limit to survive. \n Tip: look for special \n things around the map.", 25, 600);
+    }
+  }
+
+  void drawGuidesTt() {
+    if (showGuidesTooltip) {
+      fill(0);
+      textAlign(LEFT, CENTER);
+      textSize(20);
+      text("Hold G to access guides.", 520, 430);
+    }
+  }
+
+  void drawHealTt() {
+    if (showHealTooltip) {
+      fill(0);
+      textAlign(LEFT, CENTER);
+      textSize(20);
+      text("Stay within range to consume its power and heal.", 450, 430);
+    }
+  }
+
+  void drawWorkshopTt() {
+    if (showWorkshopTooltip) {
+      fill(0);
+      textAlign(LEFT, CENTER);
+      textSize(20);
+      text("You are able to open menu here by pressing M.", 450, 430);
+    }
+  }
+
+  void drawAnchorTt() {
+    if (showAnchorTooltip) {
+      fill(0);
+      textAlign(CENTER, CENTER);
+      textSize(20);
+      text("Hold Z to activate anchor (+2m0s)", width / 2, 430);
+  
+      if (player.activatingAnchor) {
+        float barW = 300;
+        float barX = width / 2 - barW / 2;
+        float barY = 455;
+        float barH = 12;
+        float progress = player.anchorActivateTimer / player.anchorActivateDuration;
+  
+        fill(80);
+        noStroke();
+        rect(barX, barY, barW, barH);
+  
+        fill(150, 0, 255);
+        rect(barX, barY, barW * progress, barH);
+  
+        noFill();
+        stroke(0);
+        strokeWeight(1);
+        rect(barX, barY, barW, barH);
+      }
+    }
+  }
+
+  void drawGrenadeSkill(Player player) {
+    float cx = 1000;
+    float cy = height - 60;
+    float r  = 28;
+
+    fill(255, 180, 127);
+    stroke(0);
+    strokeWeight(2);
+    ellipse(cx, cy, r*2, r*2);
+
+    float cdNorm = 1.0 - constrain(player.grenadeCooldown, 0, 1);
+    noStroke();
+    fill(255, 122, 28);
+    arc(cx, cy, r*2, r*2, -HALF_PI, -HALF_PI + TWO_PI * cdNorm, PIE);
+
+    noFill();
+    stroke(255);
+    strokeWeight(2);
+    ellipse(cx, cy, r*2, r*2);
+
+    fill(255);
+    textAlign(CENTER, CENTER);
+    textSize(14);
+    text(player.grenadeCount, cx, cy);
+  }
+
+  void drawTimer() {
+    if (player == null) return;
+
+    int t = max(0, (int)timer);
+    int minutes = t / 60;
+    int seconds = t % 60;
+    String secStr = (seconds < 10) ? "0" + seconds : "" + seconds;
+
+    float pct = timer / maxTimer;
+    if (pct > 0.5) {
+      fill(0, 180, 0);
+    } else if (pct > 0.25) {
+      fill(220, 180, 0);
+    } else {
+      fill(220, 50, 50);
+    }
+    
+    fill(0);
+    textAlign(CENTER, CENTER);
+    textSize(30);
+    text(minutes + ":" + secStr, width / 2, 35);
+
+    fill(0);
+    textSize(14);
+    textAlign(CENTER, CENTER);
+    text("ANCHORS: " + player.anchorsActivated + " / " + player.totalAnchors, width / 2, 65);
+
+    if (player.gameOver) {
+      fill(0, 180);
+      noStroke();
+      rect(0, 0, width, height);
+      fill(220, 50, 50);
+      textAlign(CENTER, CENTER);
+      textSize(48);
+      text("YOU DIED", width / 2, height / 2);
+      textSize(20);
+      fill(255);
+      text("Press M to return to menu", width / 2, height / 2 + 60);
+    } else if (player.gameWon) {
+      fill(0, 180);
+      noStroke();
+      rect(0, 0, width, height);
+      fill(100, 220, 100);
+      textAlign(CENTER, CENTER);
+      textSize(48);
+      text("EXTRACTED", width / 2, height / 2);
+      textSize(20);
+      fill(255);
+      text("Press M to return to menu", width / 2, height / 2 + 60);
+    }
+  }
+
+  void drawCoord() {
+    fill(0);
+    textAlign(LEFT, CENTER);
+    textSize(14);
+    text(round(player.x) + ", " + round(player.y), 30, 230);
+  }
+
+  void drawHealthBar(float healthPercent) {
+    strokeWeight(2);
+    fill(150);
+    rect(1060, height - 35, 200, 15);
+    strokeWeight(0);
+    fill(200, 0, 0);
+    rect(1060, height - 35, 200 * healthPercent, 15);
+  }
+
+  void drawAmmoCounter() {
+    if (player == null) return;
+    if (player.activeWeapon == null) return;
+
+    float barX = 1060;
+    float barY = height - 80;
+    float barW = 200;
+    float barH = 30;
+
+    fill(0);
+    textAlign(LEFT, CENTER);
+    textSize(14);
+    text(player.activeWeapon.name, barX, barY - 15);
+    if (player.activeWeapon.fireModes[player.activeWeapon.fireModeIndex]) {
+      text("[AUTO]", barX + 150, barY - 15);
+    } else {
+      text("[SEMI]", barX + 150, barY - 15);
+    }
+
+    fill(150);
+    strokeWeight(0);
+    rect(barX, barY, barW, barH);
+
+    int magSize = player.activeWeapon.getStatBlock().magSize;
+    float fillW;
+    if (player.reloading) {
+      fillW = (player.reloadTimer / player.reloadDuration) * barW;
+    } else {
+      fillW = (float)player.currentAmmo / magSize * barW;
+    }
+
+    fill(220, 200, 100);
+    rect(barX, barY, fillW, barH);
+
+    fill(0);
+    textAlign(CENTER, CENTER);
+    textSize(13);
+    if (player.reloading) {
+      text("RELOADING", barX + barW / 2, barY + barH / 2);
+    } else {
+      text(player.currentAmmo + " / " + magSize, barX + barW / 2, barY + barH / 2);
+    }
+  }
+
+  void drawDodgeBar() {
+    if (player == null) return;
+
+    float barX = 1060;
+    float barY = height - 43;
+    float barW = 200;
+    float barH = 8;
+
+    fill(150);
+    strokeWeight(0);
+    rect(barX, barY, barW, barH);
+
+    float fullDodges = player.dodgesLeft;
+    float partialDodge;
+    if (player.dodgesLeft < player.maxDodges) {
+      partialDodge = player.dodgeRechargeTimer / player.dodgeRechargeDuration;
+    } else {
+      partialDodge = 0;
+    }
+
+    float fillW = ((fullDodges + partialDodge) / player.maxDodges) * barW;
+    fill(100, 150, 255);
+    rect(barX, barY, fillW, barH);
+
+    stroke(0);
+    strokeWeight(1);
+    for (int i = 1; i < player.maxDodges; i++) {
+      float lineX = barX + (barW / player.maxDodges) * i;
+      line(lineX, barY, lineX, barY + barH);
+    }
+  }
+
+  void drawWaveCounter()  {}
+  void drawWeaponSlots()  {}
+  void drawBossBar(int health, int maxHealth) {}
+}

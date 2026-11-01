@@ -1,0 +1,68 @@
+public class GameManager{
+  String currentScreen;
+  PlayerLoadout loadout;
+  MenuManager menuManager;
+  GameWorld gameWorld;
+  
+  
+  GameManager(){
+    currentScreen = "menu";
+    loadout = new PlayerLoadout();
+    menuManager = new MenuManager();
+    gameWorld = null;
+  }
+  
+  void setUp() {
+    gameWorld = new GameWorld();
+    gameWorld.setUp();
+  }
+  
+  void update(float dt) {
+    if (currentScreen.equals("menu")) {
+      menuManager.update();
+    } else if (currentScreen.equals("game")) {
+      gameWorld.update(dt);
+    }
+  }
+  
+  void Draw(){
+    if (currentScreen.equals("menu")) {
+      menuManager.draw();
+    } else if (currentScreen.equals("game")) {
+      gameWorld.Draw();
+    }
+  }
+  
+  void goTo(String screen){
+    currentScreen = screen;
+    if (screen.equals("menu")) {
+      menuManager.onEnter();
+    } else if (screen.equals("game")) {
+      //gameWorld = new GameWorld(loadout);
+    }
+  }
+  
+  void startGame() {
+    goTo("game");
+  }
+   
+  void goToMenu() {
+    goTo("menu");
+  }
+  
+  void handleClick(int mx, int my){
+    if (currentScreen.equals("menu")) {
+      menuManager.handleClick(mx, my);
+    } else if (currentScreen.equals("game")) {
+      //gameWorld.handleClick(mx, my);
+    }
+  }
+  
+  void handleKey(char key){
+    if (currentScreen.equals("menu")) {
+      menuManager.handleKey(key);
+    } else if (currentScreen.equals("game")) {
+      gameWorld.handleKey(key);
+    }
+  }
+}
